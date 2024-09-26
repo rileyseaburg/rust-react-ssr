@@ -1,16 +1,15 @@
 pub mod models;
 pub mod routes;
-use std::{env, fs::read_to_string};
-use std::sync::Mutex;
+use actix_files::Files;
+use actix_session::storage::CookieSessionStore;
+use actix_web::cookie::Key;
 use actix_web::{
     dev::Server, get, http::StatusCode, web, App, Error, HttpRequest, HttpResponse, HttpServer,
     Responder,
 };
-use actix_files::Files;
-use actix_session::storage::CookieSessionStore;
-use actix_web::cookie::Key;
+use std::sync::Mutex;
+use std::{env, fs::read_to_string};
 use tera::Tera;
-
 
 pub struct AppState {
     js_source: Mutex<String>, // <- Mutex is necessary to mutate safely across threads
@@ -41,10 +40,12 @@ async fn main() -> std::io::Result<()> {
 
         let state = web::Data::new(AppState {
             js_source: Mutex::new(
-                read_to_string("../build/index.js").expect("Failed to load the resource."),
+                read_to_string("./build/index.js").expect("Failed to load the resource."),
             ),
         });
+
         App::new()
+            .app_data(state)
             .wrap(
                 actix_web::middleware::Logger::default()
                     .exclude("/static")
@@ -54,11 +55,18 @@ async fn main() -> std::io::Result<()> {
                 CookieSessionStore::default(),
                 get_secret_key().expect("Failed to generate secret key"),
             ))
-            .service(routes::index::index)
             .service(Files::new("/static", "./static").show_files_listing())
             .service(Files::new("/react-ssr", "./client/build").show_files_listing())
+            .service(Files::new("/scripts", "./build/scripts/").show_files_listing())
+            .route("/health_check", web::get().to(health_check))
+            .service(routes::index::index)
     })
     .bind("127.0.0.1:8080")?
     .run()
     .await
+}
+
+
+async fn health_check() -> impl Responder {
+    HttpResponse::Ok().finish()
 }
