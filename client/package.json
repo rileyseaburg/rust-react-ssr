@@ -39,7 +39,7 @@
     "rollup-plugin-terser": "^7.0.2",
     "ts-loader": "^9.4.2",
     "typescript": "^5.0.4",
-    "vite": "^4.0.4"
+    "vite": "^6.4.4"
   },
   "type": "module"
 }
